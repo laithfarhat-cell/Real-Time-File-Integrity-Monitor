@@ -1,0 +1,46 @@
+services:
+  fim:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: realtime-fim:latest
+    container_name: realtime-fim
+    restart: unless-stopped
+
+    # Remap monitored paths (e.g. /etc/passwd -> /host/etc/passwd) so host mounts
+    # stay strictly read-only without shadowing container TLS certs (/etc/ssl).
+    environment:
+      FIM_HOST_ROOT: "/host"
+      TELEGRAM_BOT_TOKEN: "${TELEGRAM_BOT_TOKEN:-}"
+      TELEGRAM_CHAT_ID: "${TELEGRAM_CHAT_ID:-}"
+      DISCORD_WEBHOOK_URL: "${DISCORD_WEBHOOK_URL:-}"
+
+    volumes:
+      # Configuration mounted read-only
+      - ./config.yaml:/opt/fim/config.yaml:ro
+
+      # Watched host directories mounted strictly read-only (:ro)
+      - /etc:/host/etc:ro
+      - /usr/local/bin:/host/usr/local/bin:ro
+      # Uncomment additional host directories present on your server:
+      # - /var/www/html:/host/var/www/html:ro
+      # - /root/.ssh:/host/root/.ssh:ro
+
+      # Persistent state for SQLite baseline and ECS SIEM JSON alerts
+      - fim_baseline:/var/lib/fim
+      - ./logs:/var/log/fim
+
+    # Container runtime hardening
+    read_only: true
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,size=16m
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    cap_add:
+      # Grants read/traverse access across restricted host files without write capability
+      - DAC_READ_SEARCH
+
+volumes:
+  fim_baseline:

@@ -1,0 +1,15 @@
+[project]
+name = "realtime-fim"
+version = "1.0.0"
+description = "Production-grade Real-Time File Integrity Monitor (HIDS)"
+readme = "README.md"
+requires-python = ">=3.9"
+dependencies = [
+    "watchdog>=4.0.0,<8.0.0",
+    "PyYAML>=6.0.1,<7.0.0",
+    "requests>=2.31.0,<3.0.0",
+]
+
+[tool.pytest.ini_options]
+pythonpath = ["."]
+testpaths = ["tests"]
