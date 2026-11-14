@@ -1,0 +1,26 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Virtual environments
+.venv/
+venv/
+env/
+
+# Testing & coverage
+.pytest_cache/
+.coverage
+coverage/
+.mypy_cache/
+.ruff_cache/
+
+# Runtime FIM artifacts & secrets
+baseline.db
+baseline.db-wal
+baseline.db-shm
+baseline.db-journal
+fim_alerts.json
+*.log
+.env
+fim.env

@@ -1,0 +1,131 @@
+# ==============================================================================
+# Real-Time File Integrity Monitor (FIM) — Configuration
+# ==============================================================================
+
+engine:
+  # Local SQLite cryptographic baseline database path
+  database_path: "./baseline.db"
+  # Read chunk size in bytes for memory-safe SHA-256 hashing (64 KiB)
+  chunk_size: 65536
+  # Debounce buffer in milliseconds to coalesce atomic editor saves (vim, nano, sed -i)
+  debounce_ms: 500
+  # Follow symbolic links when hashing/scanning (false recommended to prevent symlink loops/attacks)
+  follow_symlinks: false
+
+# ------------------------------------------------------------------------------
+# Target Files & Directories to Baseline and Monitor
+# Supports exact file paths, directory trees, and '~' home expansion.
+# Non-existent or inaccessible paths log a warning and are safely skipped.
+# ------------------------------------------------------------------------------
+monitored_paths:
+  - path: "/etc/passwd"
+    recursive: false
+  - path: "/etc/group"
+    recursive: false
+  - path: "/etc/sudoers"
+    recursive: false
+  - path: "/etc/sudoers.d"
+    recursive: true
+  - path: "/etc/ssh"
+    recursive: true
+  - path: "/etc/hosts"
+    recursive: false
+  - path: "~/.ssh"
+    recursive: true
+  - path: "/var/www/html"
+    recursive: true
+
+# ------------------------------------------------------------------------------
+# Exclusion Rules (Eliminate False Positives from Editor Swap/Temp/VCS Files)
+# Note: baseline.db* and fim_alerts.json are also excluded automatically.
+# ------------------------------------------------------------------------------
+exclusions:
+  globs:
+    - "*.swp"
+    - "*.swo"
+    - "*.swx"
+    - "*.tmp"
+    - "*.temp"
+    - "*~"
+    - "4913"              # Vim write-permission probe temporary file
+    - ".DS_Store"
+    - "*.pyc"
+    - "*.pyo"
+    - "__pycache__/*"
+    - "*/__pycache__/*"
+    - ".git/*"
+    - "*/.git/*"
+    - "*.pid"
+    - "*.lock"
+  regex:
+    - "^/proc(/|$)"
+    - "^/sys(/|$)"
+    - "^/dev(/|$)"
+    - "^/run(/|$)"
+    - "\\.#[^/]+$"        # Emacs lock/temp files
+
+# ------------------------------------------------------------------------------
+# Path-Based Severity Classification
+# Evaluated by highest severity / specificity match; falls back to default_severity.
+# Valid levels: CRITICAL, HIGH, MEDIUM, LOW
+# ------------------------------------------------------------------------------
+severity:
+  default_severity: "MEDIUM"
+  rules:
+    # Identity, authentication, and privilege escalation targets
+    - pattern: "/etc/passwd"
+      level: "CRITICAL"
+    - pattern: "/etc/shadow"
+      level: "CRITICAL"
+    - pattern: "/etc/gshadow"
+      level: "CRITICAL"
+    - pattern: "/etc/sudoers"
+      level: "CRITICAL"
+    - pattern: "/etc/sudoers.d/*"
+      level: "CRITICAL"
+    - pattern: "~/.ssh/authorized_keys"
+      level: "CRITICAL"
+    - pattern: "~/.ssh/id_*"
+      level: "CRITICAL"
+    - pattern: "/etc/ssh/sshd_config"
+      level: "CRITICAL"
+    - pattern: "/etc/ssh/sshd_config.d/*"
+      level: "CRITICAL"
+
+    # Web application roots, system binaries, and daemon units
+    - pattern: "/var/www/html/*"
+      level: "HIGH"
+    - pattern: "/etc/systemd/system/*"
+      level: "HIGH"
+    - pattern: "/usr/local/bin/*"
+      level: "HIGH"
+    - pattern: "/usr/local/sbin/*"
+      level: "HIGH"
+    - pattern: "~/.ssh/*"
+      level: "HIGH"
+
+    # General system configuration files
+    - pattern: "/etc/*"
+      level: "MEDIUM"
+
+# ------------------------------------------------------------------------------
+# SIEM Logging (ECS JSON) & Instant Asynchronous Webhooks
+# Supports ${ENV_VAR} syntax so tokens are never committed to source control.
+# ------------------------------------------------------------------------------
+alerting:
+  ecs_log_file: "./fim_alerts.json"
+  console_alerts: true
+
+  telegram:
+    enabled: false
+    bot_token: "${TELEGRAM_BOT_TOKEN}"
+    chat_id: "${TELEGRAM_CHAT_ID}"
+    min_severity: "MEDIUM"
+    timeout_seconds: 10
+
+  discord:
+    enabled: false
+    webhook_url: "${DISCORD_WEBHOOK_URL}"
+    username: "FIM Security Sentinel"
+    min_severity: "MEDIUM"
+    timeout_seconds: 10

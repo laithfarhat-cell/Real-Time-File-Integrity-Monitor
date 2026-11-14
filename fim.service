@@ -1,0 +1,49 @@
+[Unit]
+Description=Real-Time File Integrity Monitor (FIM) Daemon
+Documentation=https://github.com/laithfarhat-cell/Real-Time-File-Integrity-Monitor
+After=network-online.target local-fs.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=root
+Group=root
+WorkingDirectory=/opt/fim
+
+# Optional 0600 secrets file defining TELEGRAM_BOT_TOKEN, TELEGRAM_CHAT_ID, DISCORD_WEBHOOK_URL
+EnvironmentFile=-/etc/fim/fim.env
+Environment="PYTHONUNBUFFERED=1"
+
+# Refuse to start if cryptographic baseline has not been initialized yet
+ExecStartPre=/usr/bin/test -f /var/lib/fim/baseline.db
+
+ExecStart=/opt/fim/.venv/bin/python /opt/fim/main.py \
+    --config /etc/fim/config.yaml \
+    --db /var/lib/fim/baseline.db \
+    --alerts-file /var/log/fim/fim_alerts.json \
+    --audit-on-start \
+    --monitor
+
+KillSignal=SIGTERM
+TimeoutStopSec=15
+Restart=on-failure
+RestartSec=5
+
+# Systemd sandboxing & defense-in-depth
+# Host filesystem is read-only to the FIM daemon except baseline DB & alert log directories
+ProtectSystem=strict
+ProtectHome=read-only
+ReadWritePaths=/var/lib/fim /var/log/fim
+PrivateTmp=true
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+RestrictSUIDSGID=true
+LockPersonality=true
+
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=fim
+
+[Install]
+WantedBy=multi-user.target
